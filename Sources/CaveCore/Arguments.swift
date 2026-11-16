@@ -7,6 +7,7 @@ public struct RenderOptions: Equatable, Sendable {
 public enum Command: Equatable, Sendable {
     case up
     case render(RenderOptions)
+    case reload(render: RenderOptions?, full: Bool)
     case down
 }
 
@@ -19,6 +20,8 @@ public let usage = """
     usage:
       cave up                                   build the Debug app and start the render host
       cave render <fixture> [render options]    render a fixture with the code the host runs
+      cave reload [--render <fixture> [render options]] [--full]
+                                                patch edited Swift files into the host, then render
       cave down                                 stop the render host
 
     render options:
@@ -33,6 +36,7 @@ public func parseInvocation(_ arguments: [String]) throws -> Invocation {
     var fixture: String?
     var sizes: [[Int]] = []
     var appearances: [String] = []
+    var full = false
     var json = false
     var rest = arguments.dropFirst().makeIterator()
     func value(for flag: String) throws -> String {
@@ -42,8 +46,10 @@ public func parseInvocation(_ arguments: [String]) throws -> Invocation {
     while let argument = rest.next() {
         switch argument {
         case "--json": json = true
+        case "--full": full = true
         case "--size": sizes.append(try parseSize(try value(for: "--size")))
         case "--appearance": appearances += try parseAppearances(try value(for: "--appearance"))
+        case "--render": fixture = try value(for: "--render")
         case _ where argument.hasPrefix("-"): throw CaveError("unknown option \(argument)", hint: usage)
         case _ where name == "render" && fixture == nil: fixture = argument
         default: throw CaveError("unexpected argument \(argument)", hint: usage)
@@ -58,6 +64,7 @@ public func parseInvocation(_ arguments: [String]) throws -> Invocation {
     switch name {
     case "up": return Invocation(command: .up, json: json)
     case "down": return Invocation(command: .down, json: json)
+    case "reload": return Invocation(command: .reload(render: options, full: full), json: json)
     case "render":
         guard let options else { throw CaveError("render needs a fixture name", hint: usage) }
         return Invocation(command: .render(options), json: json)

@@ -12,6 +12,14 @@ public func execute(_ command: Command) throws -> [String: Any] {
         let relaunched = try workspace.ensureHost()
         report = try workspace.render(options)
         report["host_relaunched"] = relaunched
+    case .reload(let options, let full):
+        report = full ? try workspace.up() : try workspace.reload()
+        if let options {
+            let rendered = try workspace.render(options)
+            report["renders"] = rendered["renders"]
+            report["changed_since_reload"] = rendered["changed_since_reload"]
+            report.merge(timings: rendered["timings"])
+        }
     case .down:
         workspace.stopHost()
         unlink(workspace.socketPath)
@@ -83,6 +91,26 @@ extension Workspace {
         try save(state)
         return ["host_pid": Int(pid), "timings": ["build_ms": buildMilliseconds, "settings_ms": settingsMilliseconds,
                                                   "launch_ms": milliseconds(since: launchStarted)]]
+    }
+
+    func reload() throws -> [String: Any] {
+        let relaunched = try ensureHost()
+        guard var state = loadState() else { throw CaveError("no build to patch yet", hint: "run cave up") }
+        guard try !sourcesChanged(since: state.hostCodeDate, state).isEmpty else {
+            return ["host_relaunched": relaunched, "patched_files": [String](), "stale_files": [[String: Any]]()]
+        }
+        let compileStarted = Date()
+        let patch = try compilePatch(&state)
+        let compileMilliseconds = milliseconds(since: compileStarted)
+        let applyStarted = Date()
+        _ = try send(["op": "load", "path": patch.dylib])
+        try save(state)
+        return [
+            "host_relaunched": relaunched,
+            "patched_files": patch.files,
+            "stale_files": patch.stale.map { ["file": $0.file, "reason": $0.reason] },
+            "timings": ["compile_ms": compileMilliseconds, "apply_ms": milliseconds(since: applyStarted)],
+        ]
     }
 
     func render(_ options: RenderOptions) throws -> [String: Any] {
