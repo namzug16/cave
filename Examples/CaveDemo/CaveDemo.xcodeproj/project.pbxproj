@@ -6,7 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		CA0000000000000000000011 /* CaveKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0000000000000000000010 /* CaveKit.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		CA0000000000000000000010 /* CaveKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CaveKit.swift; path = ../../Templates/CaveKit.swift; sourceTree = SOURCE_ROOT; };
 		CA0000000000000000000001 /* CaveDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CaveDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -33,6 +38,7 @@
 			isa = PBXGroup;
 			children = (
 				CA0000000000000000000002 /* CaveDemo */,
+				CA0000000000000000000010 /* CaveKit.swift */,
 				CA0000000000000000000005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -112,6 +118,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CA0000000000000000000011 /* CaveKit.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
