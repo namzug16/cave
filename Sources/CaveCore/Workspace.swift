@@ -63,7 +63,7 @@ struct Workspace {
             let parent = candidate.deletingLastPathComponent()
             guard parent.path != candidate.path else {
                 throw CaveError("no cave.json in \(directory.path) or any parent",
-                                hint: #"add cave.json at the repository root: {"project": "App.xcodeproj", "scheme": "App", "fixtures": "App/CaveFixtures.swift"}"#)
+                                hint: "run cave guide for how to set cave up in this app")
             }
             candidate = parent
         }

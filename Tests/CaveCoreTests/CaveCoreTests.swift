@@ -57,3 +57,16 @@ import Testing
     let settings = ["SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY": "YES", "SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY": "NO"]
     #expect(upcomingFeatures(settings) == ["MemberImportVisibility"])
 }
+
+@Test func parsesAgentCommands() throws {
+    #expect(try parseInvocation(["status", "--json"]) == Invocation(command: .status, json: true))
+    #expect(try parseInvocation(["list"]).command == .list)
+    #expect(try parseInvocation(["guide"]).command == .guide)
+}
+
+@Test func suggestsTheNextCommand() {
+    #expect(nextCommand(hasBuild: false, kitChanged: false, changed: [], fixture: nil) == "cave up --json")
+    #expect(nextCommand(hasBuild: true, kitChanged: true, changed: ["/CaveKit.swift"], fixture: "a") == "cave reload --full --render a --json")
+    #expect(nextCommand(hasBuild: true, kitChanged: false, changed: ["/View.swift"], fixture: "a") == "cave reload --render a --json")
+    #expect(nextCommand(hasBuild: true, kitChanged: false, changed: [], fixture: nil) == "cave render <fixture> --json")
+}

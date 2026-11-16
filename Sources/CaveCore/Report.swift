@@ -58,6 +58,11 @@ public func milliseconds(since start: Date) -> Int { Int(Date().timeIntervalSinc
 
 public func humanSummary(_ report: [String: Any]) -> String {
     var lines: [String] = []
+    if let guide = report["guide"] as? String { return guide }
+    if let running = report["host_running"] as? Bool {
+        lines.append(running ? "host: running, built \(report["built_at"] ?? "")" : "host: not running")
+    }
+    for fixture in report["fixtures"] as? [String] ?? [] { lines.append("fixture: \(fixture)") }
     for render in report["renders"] as? [[String: Any]] ?? [] {
         lines.append("\(render["path"] ?? "") (\(render["ms"] ?? 0) ms)")
     }
@@ -67,6 +72,7 @@ public func humanSummary(_ report: [String: Any]) -> String {
     for changed in report["changed_since_reload"] as? [String] ?? [] {
         lines.append("not in host yet: \(changed) (run cave reload)")
     }
+    if let next = report["next"] as? String { lines.append("next: \(next)") }
     if let timings = report["timings"] as? [String: Int] {
         lines.append(timings.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " "))
     }

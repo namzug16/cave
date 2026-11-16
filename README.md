@@ -10,6 +10,8 @@ cave reload --render library.populated --size 900x600 --json   # patch the edit 
 cave down
 ```
 
+Agents should start with `cave status --json`. Its `next` field names the command to run, and `cave guide` explains the rest.
+
 ## Setup
 
 1. **Add [`Templates/CaveKit.swift`](Templates/CaveKit.swift)** to your macOS app target, unchanged.
@@ -38,6 +40,9 @@ Then add `cave.json` at the repository root (paths relative to it) and build the
 
 | Command | What it does |
 |---|---|
+| `cave status` | Whether the host runs, the files it doesn't have yet, the fixtures, and `next`: the exact command to run now. Read-only. |
+| `cave list` | The fixtures you can render. |
+| `cave guide` | The agent workflow: the loop, how to read each JSON field, and how to set cave up in a new app. |
 | `cave up` | `xcodebuild` the scheme in Debug, then replace the running host with the new build. A failed build leaves the old host running. |
 | `cave render <fixture>` | Render a fixture at every `--size WxH` (points, repeatable, default 1024x768) crossed with `--appearance light,dark` (default light), at @2x. |
 | `cave reload [--render <fixture> …]` | Patch the Swift files edited since the last build into the host, then render. `--full` runs `cave up` instead. |

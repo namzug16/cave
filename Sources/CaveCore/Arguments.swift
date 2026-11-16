@@ -9,6 +9,9 @@ public enum Command: Equatable, Sendable {
     case render(RenderOptions)
     case reload(render: RenderOptions?, full: Bool)
     case down
+    case status
+    case list
+    case guide
 }
 
 public struct Invocation: Equatable, Sendable {
@@ -18,6 +21,9 @@ public struct Invocation: Equatable, Sendable {
 
 public let usage = """
     usage:
+      cave status                               what the host runs, what changed, and the next command to run
+      cave list                                 the fixtures you can render
+      cave guide                                how to work with cave, for agents
       cave up                                   build the Debug app and start the render host
       cave render <fixture> [render options]    render a fixture with the code the host runs
       cave reload [--render <fixture> [render options]] [--full]
@@ -64,6 +70,9 @@ public func parseInvocation(_ arguments: [String]) throws -> Invocation {
     switch name {
     case "up": return Invocation(command: .up, json: json)
     case "down": return Invocation(command: .down, json: json)
+    case "status": return Invocation(command: .status, json: json)
+    case "list": return Invocation(command: .list, json: json)
+    case "guide": return Invocation(command: .guide, json: json)
     case "reload": return Invocation(command: .reload(render: options, full: full), json: json)
     case "render":
         guard let options else { throw CaveError("render needs a fixture name", hint: usage) }

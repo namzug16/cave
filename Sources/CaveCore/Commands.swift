@@ -2,7 +2,10 @@ import Foundation
 
 public func execute(_ command: Command) throws -> [String: Any] {
     let started = Date()
+    if command == .guide { return ["ok": true, "guide": agentGuide] }
     let workspace = try Workspace.find()
+    // Read-only, so it never waits behind a build another command holds the lock for.
+    if command == .status { return try workspace.status().merging(["ok": true]) { $1 } }
     try workspace.lock()
     var report: [String: Any]
     switch command {
@@ -24,6 +27,11 @@ public func execute(_ command: Command) throws -> [String: Any] {
         workspace.stopHost()
         unlink(workspace.socketPath)
         report = [:]
+    case .list:
+        let relaunched = try workspace.ensureHost()
+        report = ["fixtures": try workspace.send(["op": "list"])["fixtures"] ?? [], "host_relaunched": relaunched]
+    case .status, .guide:
+        preconditionFailure("handled before taking the lock")
     }
     report["ok"] = true
     report.merge(timings: ["total_ms": milliseconds(since: started)])
@@ -113,6 +121,25 @@ extension Workspace {
         ]
     }
 
+    func status() throws -> [String: Any] {
+        guard let state = loadState() else {
+            return ["host_running": false, "next": nextCommand(hasBuild: false, kitChanged: false, changed: [], fixture: nil)]
+        }
+        let running = hostIsRunning()
+        let changed = try sourcesChanged(since: state.hostCodeDate, state)
+        let kitChanged = try sourcesChanged(since: state.buildStartedAt, state).contains { $0.hasSuffix("/CaveKit.swift") }
+        let fixtures = running ? (try? send(["op": "list"]))?["fixtures"] as? [String] : nil
+        var report: [String: Any] = [
+            "host_running": running,
+            "built_at": ISO8601DateFormatter().string(from: state.buildStartedAt),
+            "changed_since_reload": changed,
+            "next": nextCommand(hasBuild: true, kitChanged: kitChanged, changed: changed, fixture: fixtures?.first),
+        ]
+        if let fixtures { report["fixtures"] = fixtures }
+        if let pid = state.hostPid, running { report["host_pid"] = Int(pid) }
+        return report
+    }
+
     func render(_ options: RenderOptions) throws -> [String: Any] {
         let started = Date()
         let response = try send(["op": "render", "fixture": options.fixture, "sizes": options.sizes,
@@ -125,4 +152,13 @@ extension Workspace {
         }
         return report
     }
+}
+
+/// The one command an agent should run next, given what `cave status` found.
+public func nextCommand(hasBuild: Bool, kitChanged: Bool, changed: [String], fixture: String?) -> String {
+    let fixture = fixture ?? "<fixture>"
+    if !hasBuild { return "cave up --json" }
+    if kitChanged { return "cave reload --full --render \(fixture) --json" }
+    if !changed.isEmpty { return "cave reload --render \(fixture) --json" }
+    return "cave render \(fixture) --json"
 }
