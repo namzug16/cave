@@ -1,0 +1,5 @@
+{
+  "project": "Examples/CaveDemo/CaveDemo.xcodeproj",
+  "scheme": "CaveDemo",
+  "fixtures": "Examples/CaveDemo/CaveDemo/CaveFixtures.swift"
+}
