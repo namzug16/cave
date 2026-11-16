@@ -20,6 +20,7 @@ func run(_ arguments: [String], discardingStandardError: Bool = false) throws ->
 }
 
 /// Starts a process in a session of its own, so it outlives cave, with its output in `log`.
+/// Adapted from Simless (https://github.com/abacusai/simless, Apache-2.0).
 func spawnDetached(_ executable: String, arguments: [String], environment: [String: String], log: String) throws -> pid_t {
     var actions: posix_spawn_file_actions_t?
     posix_spawn_file_actions_init(&actions)
