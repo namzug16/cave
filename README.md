@@ -12,9 +12,16 @@ cave down
 
 Agents should start with `cave status --json`. Its `next` field names the command to run, and `cave guide` explains the rest.
 
+## Install
+
+```sh
+make install                 # cave in ~/.local/bin, CaveKit.swift and SKILL.md in ~/.local/share/cave
+make install PREFIX=/usr/local
+```
+
 ## Setup
 
-1. **Add [`Templates/CaveKit.swift`](Templates/CaveKit.swift)** to your macOS app target, unchanged.
+1. **Add [`Templates/CaveKit.swift`](Templates/CaveKit.swift)** to your macOS app target, unchanged. `make install` also puts a copy in `~/.local/share/cave/`.
 2. **Add a fixtures file** to the app target that registers screens with fixture data:
    ```swift
    import SwiftUI
@@ -28,7 +35,7 @@ Agents should start with `cave status --json`. Its `next` field names the comman
    init() { CaveHost.runIfRequested(caveFixtures) }
    ```
 
-Then add `cave.json` at the repository root (paths relative to it) and build the CLI with `swift build -c release`:
+Then add `cave.json` at the repository root (paths relative to it), and add `.cave/` to `.gitignore`:
 
 ```json
 { "project": "App.xcodeproj", "scheme": "App", "fixtures": "App/CaveFixtures.swift" }
