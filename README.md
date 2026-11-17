@@ -86,4 +86,4 @@ Failures exit 1 with `{"ok": false, "errors": [{"file", "line", "column", "messa
 
 ## Performance
 
-`python3 bench/edit_to_png.py` measures the time from a saved edit to a fresh PNG, with the host already running. On the demo app (M1, Xcode 27.2) the median of 5 runs is **1.6–1.9 s** (single runs 1.56–2.17 s): compile 1.0–1.6 s, apply ~0.37 s, render ~0.17 s. `cave up` takes about 7 s warm.
+`python3 bench/edit_to_png.py` measures the time from a saved edit to a fresh PNG, with the host already running. On the demo app (M1, Xcode 27.2) the median of 5 runs is **1.2–1.9 s** depending on the run (single runs 1.19–2.17 s): compile 0.7–1.6 s, apply ~0.35 s, render ~0.16 s. `cave up` takes about 2 s when nothing needs rebuilding (it reads build settings while it builds) and about 11 s from a clean build folder.
