@@ -5,18 +5,30 @@ struct ShellResult {
     var output: String
 }
 
-/// Runs a tool to completion and returns its exit status and output: stdout, plus stderr unless discarded.
-func run(_ arguments: [String], discardingStandardError: Bool = false) throws -> ShellResult {
+/// Runs a tool to completion and returns its exit status and combined stdout and stderr.
+func run(_ arguments: [String]) throws -> ShellResult {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
     process.arguments = arguments
     let pipe = Pipe()
     process.standardOutput = pipe
-    process.standardError = discardingStandardError ? FileHandle.nullDevice : pipe
+    process.standardError = pipe
     try process.run()
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
     process.waitUntilExit()
     return ShellResult(status: process.terminationStatus, output: String(decoding: data, as: UTF8.self))
+}
+
+/// Starts a tool and returns at once, with its stdout in `outputFile` and its stderr discarded.
+func start(_ arguments: [String], outputFile: URL) throws -> Process {
+    FileManager.default.createFile(atPath: outputFile.path, contents: nil)
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments = arguments
+    process.standardOutput = try FileHandle(forWritingTo: outputFile)
+    process.standardError = FileHandle.nullDevice
+    try process.run()
+    return process
 }
 
 /// Starts a process in a session of its own, so it outlives cave, with its output in `log`.

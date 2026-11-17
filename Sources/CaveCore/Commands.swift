@@ -58,8 +58,13 @@ extension Workspace {
         #endif
         let common = ["-project", projectPath, "-scheme", config.scheme, "-configuration", "Debug",
                       "-destination", destination, "-derivedDataPath", derivedData.path]
+        // Build settings don't depend on the build's output, so they're read while it runs.
+        // Their stderr carries xcodebuild's own log lines, which would break the JSON.
+        let settingsFile = dotCave.appendingPathComponent("build-settings.json")
+        let settingsProcess = try start(["xcodebuild", "-showBuildSettings", "-json"] + common, outputFile: settingsFile)
         let build = try run(["xcodebuild", "build", "-quiet"] + common)
         guard build.status == 0 else {
+            settingsProcess.terminate()
             let diagnostics = parseDiagnostics(build.output)
             throw CaveError(diagnostics.isEmpty ? "xcodebuild failed:\n\(build.output.suffix(3000))" : "xcodebuild failed",
                             hint: "fix the build errors and run cave up again; the previous host keeps running",
@@ -67,16 +72,15 @@ extension Workspace {
         }
         let buildMilliseconds = milliseconds(since: buildStartedAt)
 
-        let settingsStarted = Date()
-        // stderr carries xcodebuild's own log lines, which would break the JSON.
-        let settingsOutput = try run(["xcodebuild", "-showBuildSettings", "-json"] + common, discardingStandardError: true)
-        guard settingsOutput.status == 0,
-              let targets = try? JSONSerialization.jsonObject(with: Data(settingsOutput.output.utf8)) as? [[String: Any]],
+        settingsProcess.waitUntilExit()
+        guard settingsProcess.terminationStatus == 0,
+              let settingsData = try? Data(contentsOf: settingsFile),
+              let targets = try? JSONSerialization.jsonObject(with: settingsData) as? [[String: Any]],
               let buildSettings = targets.first?["buildSettings"] as? [String: String] else {
-            throw CaveError("cannot read build settings (xcodebuild -showBuildSettings exited \(settingsOutput.status))",
+            throw CaveError("cannot read build settings (xcodebuild -showBuildSettings exited \(settingsProcess.terminationStatus))",
                             hint: "run xcodebuild -showBuildSettings -json -scheme \(config.scheme) by hand to see why")
         }
-        let settingsMilliseconds = milliseconds(since: settingsStarted)
+        let settingsMilliseconds = milliseconds(since: buildStartedAt) - buildMilliseconds
 
         let launchStarted = Date()
         stopHost()
@@ -101,7 +105,7 @@ extension Workspace {
         let pid = try launchHost(hostExecutable)
         state.hostPid = pid
         try save(state)
-        return ["host_pid": Int(pid), "timings": ["build_ms": buildMilliseconds, "settings_ms": settingsMilliseconds,
+        return ["host_pid": Int(pid), "timings": ["build_ms": buildMilliseconds, "settings_wait_ms": settingsMilliseconds,
                                                   "launch_ms": milliseconds(since: launchStarted)]]
     }
 
