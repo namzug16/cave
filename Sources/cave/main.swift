@@ -14,6 +14,11 @@ if arguments.isEmpty || arguments == ["--help"] || arguments == ["-h"] {
     exit(0)
 }
 
+if arguments == ["version"] || arguments == ["--version"] {
+    print(caveVersion)
+    exit(0)
+}
+
 do {
     let report = try execute(try parseCommand(arguments))
     if json { emit(report) } else { print(humanSummary(report)) }

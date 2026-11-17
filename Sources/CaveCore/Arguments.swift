@@ -15,6 +15,9 @@ public enum Command: Equatable, Sendable {
     case clean
 }
 
+/// The release workflow checks that the pushed tag matches this.
+public let caveVersion = "0.1.0"
+
 public let usage = """
     usage:
       cave status                               what the host runs, what changed, and the next command to run
@@ -26,6 +29,7 @@ public let usage = """
                                                 patch edited Swift files into the host, then render
       cave down                                 stop the render host
       cave clean                                delete rendered PNGs
+      cave version                              print the cave version
 
     render options:
       --size WxH            window content size in points, repeatable (default 1024x768)
