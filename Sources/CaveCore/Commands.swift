@@ -142,7 +142,7 @@ extension Workspace {
         let changed = try sourcesChanged(since: state.hostCodeDate, state)
         let needsFullBuild = try sourcesChanged(since: state.buildStartedAt, state).contains { $0.hasSuffix("/CaveKit.swift") }
             || !(try sourcesAddedOrRemoved(state)).isEmpty
-        let fixtures = running ? (try? send(["op": "list"]))?["fixtures"] as? [String] : nil
+        let fixtures = running ? (try? requestHost(socketPath, ["op": "list"], timeoutSeconds: 5))?["fixtures"] as? [String] : nil
         var report: [String: Any] = [
             "host_running": running,
             "built_at": ISO8601DateFormatter().string(from: state.buildStartedAt),

@@ -6,13 +6,10 @@ enum HostConnectionError: Error {
     case closedWithoutAnswer
 }
 
-/// Sends one JSON request to the render host and returns its JSON answer.
-func requestHost(_ socketPath: String, _ request: [String: Any], timeoutSeconds: Int = 60) throws -> [String: Any] {
+/// Opens a connection to the render host's socket, or returns nil if nothing listens there.
+func connectToHost(_ socketPath: String) -> Int32? {
     let connection = socket(AF_UNIX, SOCK_STREAM, 0)
-    guard connection >= 0 else { throw CaveError("socket: \(String(cString: strerror(errno)))") }
-    defer { close(connection) }
-    var timeout = timeval(tv_sec: timeoutSeconds, tv_usec: 0)
-    setsockopt(connection, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+    guard connection >= 0 else { return nil }
     var address = sockaddr_un()
     address.sun_family = sa_family_t(AF_UNIX)
     withUnsafeMutableBytes(of: &address.sun_path) { buffer in
@@ -23,14 +20,26 @@ func requestHost(_ socketPath: String, _ request: [String: Any], timeoutSeconds:
     let connected = withUnsafePointer(to: &address) {
         $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(connection, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
     }
-    guard connected == 0 else { throw HostConnectionError.notRunning }
+    guard connected == 0 else {
+        close(connection)
+        return nil
+    }
+    return connection
+}
 
+/// Sends one JSON request to the render host and returns its JSON answer.
+func requestHost(_ socketPath: String, _ request: [String: Any], timeoutSeconds: Int = 60) throws -> [String: Any] {
+    guard let connection = connectToHost(socketPath) else { throw HostConnectionError.notRunning }
+    defer { close(connection) }
+    var timeout = timeval(tv_sec: timeoutSeconds, tv_usec: 0)
+    setsockopt(connection, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
     let line = try JSONSerialization.data(withJSONObject: request) + Data("\n".utf8)
     _ = line.withUnsafeBytes { write(connection, $0.baseAddress, line.count) }
     var answer = Data()
     var buffer = [UInt8](repeating: 0, count: 65536)
     while !answer.contains(UInt8(ascii: "\n")) {
         let count = read(connection, &buffer, buffer.count)
+        if count < 0, errno == EINTR { continue }
         if count < 0, errno == EAGAIN {
             throw CaveError("the render host did not answer within \(timeoutSeconds) s",
                             hint: "the view may be stuck in a loop; cave up restarts the host")
@@ -61,8 +70,11 @@ extension Workspace {
         }
     }
 
+    /// A host busy with a long render still accepts connections, so this doesn't wait on it.
     func hostIsRunning() -> Bool {
-        (try? requestHost(socketPath, ["op": "ping"], timeoutSeconds: 5)) != nil
+        guard let connection = connectToHost(socketPath) else { return false }
+        close(connection)
+        return true
     }
 
     /// Starts the host if it isn't running (after a crash, say) and re-applies the newest patch.
