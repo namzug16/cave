@@ -37,6 +37,18 @@ public func unreachedFiles(edited: [String: String], fixturesSource: String) -> 
     return unreached.sorted()
 }
 
+/// Points errors in patch copies back at the user's files. Copies start with an import added to
+/// line 1, so only line 1 columns move.
+public func mapDiagnostics(_ diagnostics: [Diagnostic], copies: [String: String], prefixLength: Int) -> [Diagnostic] {
+    diagnostics.map { diagnostic in
+        guard let original = copies[diagnostic.file] else { return diagnostic }
+        var mapped = diagnostic
+        mapped.file = original
+        if mapped.line == 1 { mapped.column = max(1, mapped.column - prefixLength) }
+        return mapped
+    }
+}
+
 extension Workspace {
     /// Compiles the files edited since the last build, plus the fixtures file, into a dylib whose
     /// entry point re-registers every fixture from the edited code.
@@ -82,14 +94,7 @@ extension Workspace {
         let dylib = directory.appendingPathComponent("\(patchModule).dylib").path
         let result = try run(try swiftcArguments(state, module: patchModule, output: dylib) + copies.keys.sorted() + [entry])
         guard result.status == 0 else {
-            let diagnostics = parseDiagnostics(result.output).map { diagnostic -> Diagnostic in
-                var mapped = diagnostic
-                if let original = copies[diagnostic.file] {
-                    mapped.file = original
-                    if mapped.line == 1 { mapped.column = max(1, mapped.column - importPrefix.count) }
-                }
-                return mapped
-            }
+            let diagnostics = mapDiagnostics(parseDiagnostics(result.output), copies: copies, prefixLength: importPrefix.count)
             throw CaveError(diagnostics.isEmpty ? "patch compile failed:\n\(result.output)" : "patch compile failed",
                             hint: "fix the errors and reload; if the code builds in Xcode, the change can't be patched (e.g. it adds stored properties to an unedited type), so run cave reload --full",
                             diagnostics: diagnostics)

@@ -95,3 +95,17 @@ import Testing
     let workspace = Workspace(root: directory, config: Config(project: "", scheme: "", fixtures: ""))
     #expect(try workspace.sourcesAddedOrRemoved(state) == [removed, added])
 }
+
+@Test func mapsPatchErrorsBackToTheUsersFiles() {
+    let copies = ["/patches/CavePatch3/0_LibraryView.swift": "/app/LibraryView.swift"]
+    let errors = [
+        Diagnostic(file: "/patches/CavePatch3/0_LibraryView.swift", line: 1, column: 30, message: "first line"),
+        Diagnostic(file: "/patches/CavePatch3/0_LibraryView.swift", line: 12, column: 5, message: "later line"),
+        Diagnostic(file: "/patches/CavePatch3/cave_entry.swift", line: 4, column: 9, message: "generated file"),
+    ]
+    #expect(mapDiagnostics(errors, copies: copies, prefixLength: 26) == [
+        Diagnostic(file: "/app/LibraryView.swift", line: 1, column: 4, message: "first line"),
+        Diagnostic(file: "/app/LibraryView.swift", line: 12, column: 5, message: "later line"),
+        Diagnostic(file: "/patches/CavePatch3/cave_entry.swift", line: 4, column: 9, message: "generated file"),
+    ])
+}
