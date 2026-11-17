@@ -15,7 +15,7 @@ if arguments.isEmpty || arguments == ["--help"] || arguments == ["-h"] {
 }
 
 do {
-    let report = try execute(try parseInvocation(arguments).command)
+    let report = try execute(try parseCommand(arguments))
     if json { emit(report) } else { print(humanSummary(report)) }
 } catch let error as CaveError {
     if json { emit(error.json) } else { FileHandle.standardError.write(Data((error.human + "\n").utf8)) }

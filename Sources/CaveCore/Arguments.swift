@@ -14,11 +14,6 @@ public enum Command: Equatable, Sendable {
     case guide
 }
 
-public struct Invocation: Equatable, Sendable {
-    public var command: Command
-    public var json: Bool
-}
-
 public let usage = """
     usage:
       cave status                               what the host runs, what changed, and the next command to run
@@ -37,13 +32,13 @@ public let usage = """
     every command takes --json for machine-readable output
     """
 
-public func parseInvocation(_ arguments: [String]) throws -> Invocation {
+/// `--json` is accepted anywhere and left to the caller, which needs it even when parsing fails.
+public func parseCommand(_ arguments: [String]) throws -> Command {
     guard let name = arguments.first else { throw CaveError("no command given", hint: usage) }
     var fixture: String?
     var sizes: [[Int]] = []
     var appearances: [String] = []
     var full = false
-    var json = false
     var rest = arguments.dropFirst().makeIterator()
     func value(for flag: String) throws -> String {
         guard let value = rest.next() else { throw CaveError("\(flag) needs a value", hint: usage) }
@@ -51,7 +46,7 @@ public func parseInvocation(_ arguments: [String]) throws -> Invocation {
     }
     while let argument = rest.next() {
         switch argument {
-        case "--json": json = true
+        case "--json": continue
         case "--full": full = true
         case "--size": sizes.append(try parseSize(try value(for: "--size")))
         case "--appearance": appearances += try parseAppearances(try value(for: "--appearance"))
@@ -68,15 +63,15 @@ public func parseInvocation(_ arguments: [String]) throws -> Invocation {
         throw CaveError("--size and --appearance need a fixture to render", hint: usage)
     }
     switch name {
-    case "up": return Invocation(command: .up, json: json)
-    case "down": return Invocation(command: .down, json: json)
-    case "status": return Invocation(command: .status, json: json)
-    case "list": return Invocation(command: .list, json: json)
-    case "guide": return Invocation(command: .guide, json: json)
-    case "reload": return Invocation(command: .reload(render: options, full: full), json: json)
+    case "up": return .up
+    case "down": return .down
+    case "status": return .status
+    case "list": return .list
+    case "guide": return .guide
+    case "reload": return .reload(render: options, full: full)
     case "render":
         guard let options else { throw CaveError("render needs a fixture name", hint: usage) }
-        return Invocation(command: .render(options), json: json)
+        return .render(options)
     default: throw CaveError("unknown command \(name)", hint: usage)
     }
 }

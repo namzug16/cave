@@ -3,23 +3,21 @@ import Testing
 @testable import CaveCore
 
 @Test func parsesRenderWithSizesAndAppearances() throws {
-    let invocation = try parseInvocation(["render", "library.populated", "--size", "900x600", "--size", "1280x800", "--appearance", "light,dark", "--json"])
-    #expect(invocation.json)
-    #expect(invocation.command == .render(RenderOptions(fixture: "library.populated", sizes: [[900, 600], [1280, 800]], appearances: ["light", "dark"])))
+    let command = try parseCommand(["render", "library.populated", "--size", "900x600", "--size", "1280x800", "--appearance", "light,dark", "--json"])
+    #expect(command == .render(RenderOptions(fixture: "library.populated", sizes: [[900, 600], [1280, 800]], appearances: ["light", "dark"])))
 }
 
 @Test func parsesReloadWithRenderDefaults() throws {
-    let invocation = try parseInvocation(["reload", "--render", "library.populated"])
-    #expect(invocation.command == .reload(render: RenderOptions(fixture: "library.populated"), full: false))
+    #expect(try parseCommand(["reload", "--render", "library.populated"]) == .reload(render: RenderOptions(fixture: "library.populated"), full: false))
 }
 
 @Test func rejectsBadInput() {
     #expect(throws: CaveError.self) { try parseSize("900") }
     #expect(throws: CaveError.self) { try parseSize("0x600") }
     #expect(throws: CaveError.self) { try parseAppearances("light,sepia") }
-    #expect(throws: CaveError.self) { try parseInvocation(["render"]) }
-    #expect(throws: CaveError.self) { try parseInvocation(["reload", "--size", "900x600"]) }
-    #expect(throws: CaveError.self) { try parseInvocation(["render", "a", "b"]) }
+    #expect(throws: CaveError.self) { try parseCommand(["render"]) }
+    #expect(throws: CaveError.self) { try parseCommand(["reload", "--size", "900x600"]) }
+    #expect(throws: CaveError.self) { try parseCommand(["render", "a", "b"]) }
 }
 
 @Test func parsesCompilerErrorsOnly() {
@@ -60,9 +58,9 @@ import Testing
 }
 
 @Test func parsesAgentCommands() throws {
-    #expect(try parseInvocation(["status", "--json"]) == Invocation(command: .status, json: true))
-    #expect(try parseInvocation(["list"]).command == .list)
-    #expect(try parseInvocation(["guide"]).command == .guide)
+    #expect(try parseCommand(["status", "--json"]) == .status)
+    #expect(try parseCommand(["list"]) == .list)
+    #expect(try parseCommand(["guide"]) == .guide)
 }
 
 @Test func suggestsTheNextCommand() {
