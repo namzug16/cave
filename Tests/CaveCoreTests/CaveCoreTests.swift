@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import CaveCore
 
@@ -65,8 +66,32 @@ import Testing
 }
 
 @Test func suggestsTheNextCommand() {
-    #expect(nextCommand(hasBuild: false, kitChanged: false, changed: [], fixture: nil) == "cave up --json")
-    #expect(nextCommand(hasBuild: true, kitChanged: true, changed: ["/CaveKit.swift"], fixture: "a") == "cave reload --full --render a --json")
-    #expect(nextCommand(hasBuild: true, kitChanged: false, changed: ["/View.swift"], fixture: "a") == "cave reload --render a --json")
-    #expect(nextCommand(hasBuild: true, kitChanged: false, changed: [], fixture: nil) == "cave render <fixture> --json")
+    #expect(nextCommand(hasBuild: false, needsFullBuild: false, changed: [], fixture: nil) == "cave up --json")
+    #expect(nextCommand(hasBuild: true, needsFullBuild: true, changed: ["/CaveKit.swift"], fixture: "a") == "cave reload --full --render a --json")
+    #expect(nextCommand(hasBuild: true, needsFullBuild: false, changed: ["/View.swift"], fixture: "a") == "cave reload --render a --json")
+    #expect(nextCommand(hasBuild: true, needsFullBuild: false, changed: [], fixture: nil) == "cave render <fixture> --json")
+}
+
+@Test func findsSwiftFilesAddedOrRemovedSinceTheBuild() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let buildStartedAt = Date()
+    func file(_ name: String, modified: Date) throws -> String {
+        let path = directory.appendingPathComponent(name).path
+        try "".write(toFile: path, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: path)
+        return path
+    }
+    let kept = try file("Kept.swift", modified: buildStartedAt - 60)
+    _ = try file("ExcludedOnPurpose.swift", modified: buildStartedAt - 60)
+    let added = try file("Added.swift", modified: buildStartedAt + 60)
+    let removed = directory.appendingPathComponent("Removed.swift").path
+    let list = directory.appendingPathComponent("files.list").path
+    try [kept, removed].joined(separator: "\n").write(toFile: list, atomically: true, encoding: .utf8)
+    let state = State(buildStartedAt: buildStartedAt,
+                      buildSettings: ["NATIVE_ARCH_ACTUAL": "arm64", "SWIFT_RESPONSE_FILE_PATH_normal_arm64": list],
+                      hostExecutable: "")
+    let workspace = Workspace(root: directory, config: Config(project: "", scheme: "", fixtures: ""))
+    #expect(try workspace.sourcesAddedOrRemoved(state) == [removed, added])
 }

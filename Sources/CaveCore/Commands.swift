@@ -104,6 +104,11 @@ extension Workspace {
     func reload() throws -> [String: Any] {
         let relaunched = try ensureHost()
         guard var state = loadState() else { throw CaveError("no build to patch yet", hint: "run cave up") }
+        let addedOrRemoved = try sourcesAddedOrRemoved(state)
+        guard addedOrRemoved.isEmpty else {
+            throw CaveError("Swift files were added or removed since the last build: \(addedOrRemoved.joined(separator: ", "))",
+                            hint: "a patch can't add or remove files; run cave reload --full")
+        }
         guard try !sourcesChanged(since: state.hostCodeDate, state).isEmpty else {
             return ["host_relaunched": relaunched, "patched_files": [String](), "stale_files": [[String: Any]]()]
         }
@@ -123,17 +128,18 @@ extension Workspace {
 
     func status() throws -> [String: Any] {
         guard let state = loadState() else {
-            return ["host_running": false, "next": nextCommand(hasBuild: false, kitChanged: false, changed: [], fixture: nil)]
+            return ["host_running": false, "next": nextCommand(hasBuild: false, needsFullBuild: false, changed: [], fixture: nil)]
         }
         let running = hostIsRunning()
         let changed = try sourcesChanged(since: state.hostCodeDate, state)
-        let kitChanged = try sourcesChanged(since: state.buildStartedAt, state).contains { $0.hasSuffix("/CaveKit.swift") }
+        let needsFullBuild = try sourcesChanged(since: state.buildStartedAt, state).contains { $0.hasSuffix("/CaveKit.swift") }
+            || !(try sourcesAddedOrRemoved(state)).isEmpty
         let fixtures = running ? (try? send(["op": "list"]))?["fixtures"] as? [String] : nil
         var report: [String: Any] = [
             "host_running": running,
             "built_at": ISO8601DateFormatter().string(from: state.buildStartedAt),
             "changed_since_reload": changed,
-            "next": nextCommand(hasBuild: true, kitChanged: kitChanged, changed: changed, fixture: fixtures?.first),
+            "next": nextCommand(hasBuild: true, needsFullBuild: needsFullBuild, changed: changed, fixture: fixtures?.first),
         ]
         if let fixtures { report["fixtures"] = fixtures }
         if let pid = state.hostPid, running { report["host_pid"] = Int(pid) }
@@ -155,10 +161,10 @@ extension Workspace {
 }
 
 /// The one command an agent should run next, given what `cave status` found.
-public func nextCommand(hasBuild: Bool, kitChanged: Bool, changed: [String], fixture: String?) -> String {
+public func nextCommand(hasBuild: Bool, needsFullBuild: Bool, changed: [String], fixture: String?) -> String {
     let fixture = fixture ?? "<fixture>"
     if !hasBuild { return "cave up --json" }
-    if kitChanged { return "cave reload --full --render \(fixture) --json" }
+    if needsFullBuild { return "cave reload --full --render \(fixture) --json" }
     if !changed.isEmpty { return "cave reload --render \(fixture) --json" }
     return "cave render \(fixture) --json"
 }

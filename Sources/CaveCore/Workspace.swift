@@ -97,6 +97,23 @@ struct Workspace {
         return list.split(separator: "\n").map(String.init)
     }
 
+    /// Swift files deleted since the last build, or added next to its sources since then: a patch
+    /// can't add or remove files, so these need a full build. Older unlisted files are left out of
+    /// the target on purpose.
+    func sourcesAddedOrRemoved(_ state: State) throws -> [String] {
+        let sources = try appSources(state)
+        let listed = Set(sources)
+        let removed = sources.filter { !FileManager.default.fileExists(atPath: $0) }
+        let directories = Set(sources.map { ($0 as NSString).deletingLastPathComponent })
+        let added = directories.sorted().flatMap { directory in
+            ((try? FileManager.default.contentsOfDirectory(atPath: directory)) ?? [])
+                .filter { $0.hasSuffix(".swift") }
+                .map { "\(directory)/\($0)" }
+                .filter { !listed.contains($0) && (modificationDate($0) ?? .distantPast) > state.buildStartedAt }
+        }
+        return removed + added
+    }
+
     func sourcesChanged(since date: Date, _ state: State) throws -> [String] {
         try appSources(state).filter { (modificationDate($0) ?? .distantFuture) > date }
     }
