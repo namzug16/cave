@@ -93,9 +93,13 @@ extension Workspace {
             guard result.status == 0 else { throw CaveError("\(step.joined(separator: " ")) failed:\n\(result.output)") }
         }
         let hostExecutable = hostDirectory.appendingPathComponent(buildSettings["EXECUTABLE_PATH"] ?? "").path
-        let pid = try launchHost(hostExecutable)
-        var state = State(buildStartedAt: buildStartedAt, buildSettings: buildSettings, hostExecutable: hostExecutable, hostPid: pid)
+        // Saved before launching: if the new host fails to start, the next command must not
+        // relaunch it with the old build's patch.
+        var state = State(buildStartedAt: buildStartedAt, buildSettings: buildSettings, hostExecutable: hostExecutable)
         state.patchCount = loadState()?.patchCount ?? 0
+        try save(state)
+        let pid = try launchHost(hostExecutable)
+        state.hostPid = pid
         try save(state)
         return ["host_pid": Int(pid), "timings": ["build_ms": buildMilliseconds, "settings_ms": settingsMilliseconds,
                                                   "launch_ms": milliseconds(since: launchStarted)]]
