@@ -54,6 +54,7 @@ Then add `cave.json` at the repository root (paths relative to it), and add `.ca
 | `cave render <fixture>` | Render a fixture at every `--size WxH` (points, repeatable, default 1024x768) crossed with `--appearance light,dark` (default light), at @2x. |
 | `cave reload [--render <fixture> …]` | Patch the Swift files edited since the last build into the host, then render. `--full` runs `cave up` instead. |
 | `cave down` | Stop the host. |
+| `cave clean` | Delete rendered PNGs in `.cave/renders`. The build folder and compiler cache, which take most of `.cave`, stay so the next build is fast; delete `.cave` after `cave down` to remove everything. |
 
 PNGs go to `.cave/renders/<fixture>/<W>x<H>-<appearance>.png`. With `--json` every command prints one JSON object:
 

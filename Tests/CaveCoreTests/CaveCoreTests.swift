@@ -61,6 +61,7 @@ import Testing
     #expect(try parseCommand(["status", "--json"]) == .status)
     #expect(try parseCommand(["list"]) == .list)
     #expect(try parseCommand(["guide"]) == .guide)
+    #expect(try parseCommand(["clean"]) == .clean)
 }
 
 @Test func suggestsTheNextCommand() {

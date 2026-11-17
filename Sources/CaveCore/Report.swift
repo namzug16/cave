@@ -72,6 +72,7 @@ public func humanSummary(_ report: [String: Any]) -> String {
     for changed in report["changed_since_reload"] as? [String] ?? [] {
         lines.append("not in host yet: \(changed) (run cave reload)")
     }
+    if let removed = report["removed"] as? String { lines.append("removed \(removed) (\(report["freed_bytes"] ?? 0) bytes)") }
     if let next = report["next"] as? String { lines.append("next: \(next)") }
     if let timings = report["timings"] as? [String: Int] {
         lines.append(timings.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " "))

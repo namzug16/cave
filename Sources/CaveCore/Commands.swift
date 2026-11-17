@@ -30,6 +30,12 @@ public func execute(_ command: Command) throws -> [String: Any] {
     case .list:
         let relaunched = try workspace.ensureHost()
         report = ["fixtures": try workspace.send(["op": "list"])["fixtures"] ?? [], "host_relaunched": relaunched]
+    case .clean:
+        let bytes = FileManager.default.enumerator(at: workspace.renders, includingPropertiesForKeys: [.fileSizeKey])?
+            .compactMap { ($0 as? URL).flatMap { try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize } }
+            .reduce(0, +) ?? 0
+        try? FileManager.default.removeItem(at: workspace.renders)
+        report = ["removed": workspace.renders.path, "freed_bytes": bytes]
     case .status, .guide:
         preconditionFailure("handled before taking the lock")
     }

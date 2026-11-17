@@ -12,6 +12,7 @@ public enum Command: Equatable, Sendable {
     case status
     case list
     case guide
+    case clean
 }
 
 public let usage = """
@@ -24,6 +25,7 @@ public let usage = """
       cave reload [--render <fixture> [render options]] [--full]
                                                 patch edited Swift files into the host, then render
       cave down                                 stop the render host
+      cave clean                                delete rendered PNGs
 
     render options:
       --size WxH            window content size in points, repeatable (default 1024x768)
@@ -68,6 +70,7 @@ public func parseCommand(_ arguments: [String]) throws -> Command {
     case "status": return .status
     case "list": return .list
     case "guide": return .guide
+    case "clean": return .clean
     case "reload": return .reload(render: options, full: full)
     case "render":
         guard let options else { throw CaveError("render needs a fixture name", hint: usage) }
