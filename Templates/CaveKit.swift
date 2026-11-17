@@ -198,7 +198,10 @@ enum CaveSocketServer {
         Thread.detachNewThread {
             while true {
                 let connection = accept(listener, nil, nil)
-                guard connection >= 0 else { continue }
+                guard connection >= 0 else {
+                    usleep(10_000)  // don't spin if accepting keeps failing, e.g. out of file descriptors
+                    continue
+                }
                 serve(connection)
             }
         }
