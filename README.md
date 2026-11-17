@@ -1,4 +1,5 @@
 # Plato's Cave (`cave`)
+> **Plato’s Cave.** Plato’s prisoners only see shadows on the wall. Your coding agent only sees PNGs of your macOS app.
 
 An agent-first CLI that renders native macOS SwiftUI screens to PNG. A coding agent renders a real screen with fixture data, reads the PNG, edits the view and renders it again in under two seconds, without Xcode previews.
 
