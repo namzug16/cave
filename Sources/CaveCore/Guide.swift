@@ -1,10 +1,11 @@
 import Foundation
 
 /// Where `make install` puts CaveKit.swift: `share/cave` next to the `bin` holding cave.
-var installedKitPath: String {
+var installedKit: String {
     let executable = (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])).resolvingSymlinksInPath()
-    return executable.deletingLastPathComponent().deletingLastPathComponent()
+    let path = executable.deletingLastPathComponent().deletingLastPathComponent()
         .appendingPathComponent("share/cave/CaveKit.swift").path
+    return FileManager.default.fileExists(atPath: path) ? "Installed copy: \(path)" : "Not installed: run make install in the cave repository"
 }
 
 public var agentGuide: String {
@@ -44,7 +45,7 @@ public var agentGuide: String {
       needs cave reload --full. So does any edit to CaveKit.swift.
 
     SETTING UP A NEW APP
-      1. Add CaveKit.swift to the macOS app target unchanged. Installed copy: \(installedKitPath)
+      1. Add CaveKit.swift to the macOS app target unchanged. \(installedKit)
       2. Add a fixtures file defining caveFixtures(_:) as above.
       3. In the App struct: init() { CaveHost.runIfRequested(caveFixtures) }
       4. At the repository root, cave.json:
