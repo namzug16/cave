@@ -1,0 +1,15 @@
+cave
+Copyright 2026 Gustavo Guzman
+
+cave is licensed under the MIT License (see LICENSE).
+
+Parts of cave are adapted from Simless (https://github.com/abacusai/simless),
+Copyright 2026 Abacus.AI, Inc., licensed under the Apache License, Version 2.0
+(see LICENSES/Apache-2.0.txt):
+
+- The hot reload design: compiling edited files into a dylib that
+  @testable-imports the app, links with -undefined dynamic_lookup, and is
+  dlopen'd by the running app through an entry point (Sources/CaveCore/Patch.swift,
+  Templates/CaveKit.swift).
+- Starting the render host as a detached process with posix_spawn
+  (spawnDetached in Sources/CaveCore/Shell.swift).
