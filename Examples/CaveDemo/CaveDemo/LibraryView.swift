@@ -68,5 +68,22 @@ struct BookDetail: View {
         }
         .formStyle(.grouped)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .bottomTrailing) { ReadingActions().padding() }
+    }
+}
+
+struct ReadingActions: View {
+    var body: some View {
+        if #available(macOS 26, *) {
+            HStack(spacing: 8) {
+                Button {} label: { Image(systemName: "square.and.arrow.up").frame(width: 32, height: 32) }
+                    .buttonStyle(.plain)
+                    .glassEffect(in: RoundedRectangle(cornerRadius: 12))
+                Text("Reading")
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .glassEffect(.regular.tint(.blue), in: Capsule())
+            }
+        }
     }
 }
