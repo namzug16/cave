@@ -70,7 +70,7 @@ Failures exit 1 with `{"ok": false, "errors": [{"file", "line", "column", "messa
 ## How it works
 
 - **The render host is your Debug app.** `cave up` builds it with `xcodebuild` into `.cave/DerivedData`, clones the `.app` into `.cave/host` and re-signs the clone ad hoc *without entitlements*. Outside the app sandbox the host can listen on its socket and load patches from `.cave` without prompts. `CFFIXED_USER_HOME` points its home folder at `.cave/home`, so its preferences and files stay out of your real ones.
-- **Rendering** puts the fixture in an `NSHostingView` in an offscreen borderless window, with the requested size and `NSAppearance`, and captures it with `cacheDisplay` into a @2x bitmap. `controlActiveState` is forced to `.key`, so controls draw as in a focused window. It needs no permissions and shows nothing on screen.
+- **Rendering** puts the fixture in an `NSHostingView` in a borderless window with the requested size and `NSAppearance`. The window sits on the sharpest display, below the desktop window so nobody sees it, and the window server captures it with `CGWindowListCreateImage`. That's the only capture path that composites Liquid Glass and other backdrop effects (`cacheDisplay` and `CARenderer` leave them blank). An app may capture its own windows without the Screen Recording permission. Windows larger than the display are captured piece by piece and stitched. The PNG has the display's pixel scale, reported as `scale`. `controlActiveState` is forced to `.key`, so controls draw as in a focused window.
 - **Hot reload** (adapted from [Simless](https://github.com/abacusai/simless)) compiles the files edited since the last build, plus the fixtures file, into a dylib whose module `@testable import`s the app and links with `-undefined dynamic_lookup`. The host `dlopen`s it and calls its `cave_patch_entry`, which re-registers every fixture from the patch's copy of the code. Compiler flags (Swift version, default isolation, upcoming features, conditions) come from the build settings.
 - The CLI talks to the host over a Unix socket in `$TMPDIR`, one JSON line per request. Commands are serialized per worktree with a lock in `.cave/`.
 
@@ -78,10 +78,12 @@ Failures exit 1 with `{"ok": false, "errors": [{"file", "line", "column", "messa
 
 - **An edited view renders anew only where the patch constructs it.** If you edit a child view that only an unedited parent embeds, the render still shows the built child. `cave reload` lists such files in `stale_files`. Touch the parent too, or run `cave reload --full`. Detection matches type names: one pass, no declaration graph.
 - **Some changes can't be patched,** such as stored properties added to a type that other, unedited code uses. These fail to compile or misbehave, so use `--full`. Editing `CaveKit.swift` always needs `--full`.
-- **Content only:** no titlebar, toolbar or window chrome. Materials and vibrancy may differ from a real window.
+- **Content only:** no titlebar, toolbar or window chrome.
+- **Glass looks like it does in a background window.** Plain glass renders, sampling what's behind it, but tinted glass (`.glassEffect(.regular.tint(…))`) comes out gray instead of tinted. SwiftUI takes glass's active look from the app being frontmost, and the host never activates so it doesn't take focus.
+- **Capture relies on `CGWindowListCreateImage`,** which the macOS SDK marks obsolete; it is looked up at run time. If macOS removes it, ScreenCaptureKit is the replacement, and that needs the Screen Recording permission.
 - **The host runs unsandboxed,** so code that depends on the sandbox container behaves differently.
 - **About 350 ms of each reload is macOS scanning the new dylib** the first time it is loaded, which every freshly written binary pays. Adding your terminal under *System Settings › Privacy & Security › Developer Tools* may remove it (not yet measured).
 
 ## Performance
 
-`python3 bench/edit_to_png.py` measures the time from a saved edit to a fresh PNG, with the host already running. On the demo app (M1, Xcode 27.2) the median of 5 runs is **1.8–1.9 s** (single runs 1.56–2.17 s): compile 1.0–1.6 s, apply ~0.38 s, render ~0.15 s. `cave up` takes about 7 s warm.
+`python3 bench/edit_to_png.py` measures the time from a saved edit to a fresh PNG, with the host already running. On the demo app (M1, Xcode 27.2) the median of 5 runs is **1.6–1.9 s** (single runs 1.56–2.17 s): compile 1.0–1.6 s, apply ~0.37 s, render ~0.17 s. `cave up` takes about 7 s warm.

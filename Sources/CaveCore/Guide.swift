@@ -52,7 +52,8 @@ public var agentGuide: String {
       Then: cave up --json
 
     LIMITS
-      Content only: no titlebar or toolbar. The host runs outside the app sandbox, with its home
+      Content only: no titlebar or toolbar. Glass renders, but tinted glass looks gray, as in a
+      background window. The host runs outside the app sandbox, with its home
       folder in .cave/home. Add .cave/ to the app repository's .gitignore.
     """
 }

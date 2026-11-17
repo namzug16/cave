@@ -84,41 +84,90 @@ import SwiftUI
             for appearance in appearances {
                 let start = Date()
                 let path = "\(outputDirectory)/\(size[0])x\(size[1])-\(appearance).png"
-                try renderPNG(make(), width: size[0], height: size[1], dark: appearance == "dark", to: path)
-                renders.append(["path": path, "width": size[0], "height": size[1], "appearance": appearance,
+                let scale = try renderPNG(make(), width: size[0], height: size[1], dark: appearance == "dark", to: path)
+                renders.append(["path": path, "width": size[0], "height": size[1], "appearance": appearance, "scale": scale,
                                 "ms": Int(Date().timeIntervalSince(start) * 1000)])
             }
         }
         return renders
     }
 
-    static func renderPNG(_ content: AnyView, width: Int, height: Int, dark: Bool, to path: String) throws {
+    /// Captures the window through the window server, the only path that composites Liquid Glass
+    /// and other backdrop effects: `cacheDisplay` and `CARenderer` leave them blank. An app may
+    /// capture its own windows without the Screen Recording permission. The window sits on the
+    /// sharpest display, below the desktop so nobody sees it: off every display the window server
+    /// crops a few pixels and captures at 1x. Returns the pixel scale of the capture (the display's).
+    static func renderPNG(_ content: AnyView, width: Int, height: Int, dark: Bool, to path: String) throws -> Int {
         let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)!
-        let bounds = NSRect(x: 0, y: 0, width: width, height: height)
+        let size = NSSize(width: width, height: height)
         let view = NSHostingView(rootView: content
             .frame(width: CGFloat(width), height: CGFloat(height))
             .background(Color(nsColor: .windowBackgroundColor))
             .environment(\.controlActiveState, .key))
-        view.frame = bounds
         view.appearance = appearance
-        let window = NSWindow(contentRect: bounds, styleMask: .borderless, backing: .buffered, defer: false)
+        // Otherwise the hosting view resizes the window to its content's fitting size.
+        view.sizingOptions = []
+        guard let screen = NSScreen.screens.max(by: { $0.backingScaleFactor < $1.backingScaleFactor }) else {
+            throw CaveHostError("no display to render on")
+        }
+        let window = NSWindow(contentRect: NSRect(origin: screen.frame.origin, size: size),
+                              styleMask: .borderless, backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
+        window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopWindow)) - 1)
+        window.collectionBehavior = [.transient, .ignoresCycle, .stationary]
+        window.ignoresMouseEvents = true
         window.appearance = appearance
         window.contentView = view
-        defer { window.contentView = nil; window.close() }
+        window.orderFrontRegardless()
+        defer { window.orderOut(nil); window.contentView = nil; window.close() }
         // Lists and forms fill in over a few run loop turns after the first layout.
         for _ in 0..<3 {
             view.layoutSubtreeIfNeeded()
+            CATransaction.flush()
             RunLoop.current.run(until: Date().addingTimeInterval(0.01))
         }
-        // Always @2x, whatever screen the host happens to be on.
-        let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width * 2, pixelsHigh: height * 2,
-                                      bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                                      colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
-        bitmap.size = bounds.size
-        appearance.performAsCurrentDrawingAppearance { view.cacheDisplay(in: bounds, to: bitmap) }
-        guard let png = bitmap.representation(using: .png, properties: [:]) else { throw CaveHostError("PNG encoding failed") }
+        // Only the part of a window over a display is captured, so a window larger than the display
+        // is moved under it piece by piece and the pieces are stitched together.
+        let scale = Int(screen.backingScaleFactor)
+        guard let canvas = CGContext(data: nil, width: width * scale, height: height * scale, bitsPerComponent: 8, bytesPerRow: 0,
+                                     space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                     bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+            throw CaveHostError("cannot allocate a \(width * scale)x\(height * scale) px canvas")
+        }
+        let tileWidth = Int(screen.frame.width), tileHeight = Int(screen.frame.height)
+        for tileX in stride(from: 0, to: width, by: tileWidth) {
+            for tileY in stride(from: 0, to: height, by: tileHeight) {
+                window.setFrameOrigin(NSPoint(x: screen.frame.minX - CGFloat(tileX), y: screen.frame.minY - CGFloat(tileY)))
+                CATransaction.flush()
+                let tile = NSRect(x: screen.frame.minX, y: screen.frame.minY,
+                                  width: CGFloat(min(tileWidth, width - tileX)), height: CGFloat(min(tileHeight, height - tileY)))
+                // Global display coordinates: origin at the top left of the primary display, y down.
+                let captureRect = CGRect(x: tile.minX, y: NSScreen.screens[0].frame.maxY - tile.maxY, width: tile.width, height: tile.height)
+                guard let image = captureWindow(window.windowNumber, in: captureRect) else {
+                    throw CaveHostError("the window server returned no image for the render window")
+                }
+                guard image.width == Int(tile.width) * scale, image.height == Int(tile.height) * scale else {
+                    throw CaveHostError("captured \(image.width)x\(image.height) px for a \(Int(tile.width))x\(Int(tile.height)) pt piece at \(scale)x")
+                }
+                canvas.draw(image, in: CGRect(x: tileX * scale, y: tileY * scale, width: image.width, height: image.height))
+            }
+        }
+        guard let image = canvas.makeImage() else { throw CaveHostError("cannot assemble the capture") }
+        guard let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else {
+            throw CaveHostError("PNG encoding failed")
+        }
         try png.write(to: URL(fileURLWithPath: path))
+        return scale
+    }
+
+    /// `CGWindowListCreateImage`, looked up at run time because the SDK marks it obsolete.
+    /// shortcut: relies on a deprecated call; move to ScreenCaptureKit if macOS drops it, which needs the Screen Recording permission.
+    static func captureWindow(_ windowNumber: Int, in rect: CGRect) -> CGImage? {
+        typealias CreateImage = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+        guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage") else { return nil }
+        let includingWindow: UInt32 = 1 << 3
+        let bestResolution: UInt32 = 1 << 3
+        return unsafeBitCast(symbol, to: CreateImage.self)(rect, includingWindow, UInt32(windowNumber), bestResolution)?.takeRetainedValue()
     }
 }
 
