@@ -1,11 +1,11 @@
 import Foundation
 
-/// Where `make install` puts CaveKit.swift: `share/cave` next to the `bin` holding cave.
+/// Where `make install`, Homebrew and install.sh put CaveKit.swift: `share/cave` next to the `bin` holding cave.
 var installedKit: String {
     let executable = (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])).resolvingSymlinksInPath()
     let path = executable.deletingLastPathComponent().deletingLastPathComponent()
         .appendingPathComponent("share/cave/CaveKit.swift").path
-    return FileManager.default.fileExists(atPath: path) ? "Installed copy: \(path)" : "Not installed: run make install in the cave repository"
+    return FileManager.default.fileExists(atPath: path) ? "Installed copy: \(path)" : "Not installed: brew install namzug16/tap/cave, or run make install in the cave repository"
 }
 
 public var agentGuide: String {

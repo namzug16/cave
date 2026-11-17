@@ -14,14 +14,23 @@ Agents should start with `cave status --json`. Its `next` field names the comman
 
 ## Install
 
+cave runs on Apple silicon Macs with macOS 15 or later and Xcode. Install the CLI:
+
 ```sh
-make install                 # cave in ~/.local/bin, CaveKit.swift and SKILL.md in ~/.local/share/cave
-make install PREFIX=/usr/local
+brew install namzug16/tap/cave
 ```
+
+Or, without Homebrew, to `~/.local/bin` (set `CAVE_INSTALL_DIR` to change that):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/namzug16/cave/master/install.sh | sh
+```
+
+Both put `CaveKit.swift` and `SKILL.md` in `share/cave` next to the binary. To build from source, run `make install` (or `make install PREFIX=/usr/local`).
 
 ## Setup
 
-1. **Add [`Templates/CaveKit.swift`](Templates/CaveKit.swift)** to your macOS app target, unchanged. `make install` also puts a copy in `~/.local/share/cave/`.
+1. **Add [`Templates/CaveKit.swift`](Templates/CaveKit.swift)** to your macOS app target, unchanged. Installing cave also puts a copy in `share/cave/` next to the binary, and `cave guide` prints its path.
 2. **Add a fixtures file** to the app target that registers screens with fixture data:
    ```swift
    import SwiftUI
@@ -88,3 +97,7 @@ Failures exit 1 with `{"ok": false, "errors": [{"file", "line", "column", "messa
 ## Performance
 
 `python3 bench/edit_to_png.py` measures the time from a saved edit to a fresh PNG, with the host already running. On the demo app (M1, Xcode 27.2) the median of 5 runs is **1.2–1.9 s** depending on the run (single runs 1.19–2.17 s): compile 0.7–1.6 s, apply ~0.35 s, render ~0.16 s. `cave up` takes about 2 s when nothing needs rebuilding (it reads build settings while it builds) and about 11 s from a clean build folder.
+
+## License
+
+MIT, see [LICENSE](LICENSE). The hot reload design and the detached spawn helper are adapted from [Simless](https://github.com/abacusai/simless) by Abacus.AI, under the Apache License 2.0; see [NOTICE](NOTICE).
