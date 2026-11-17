@@ -129,7 +129,7 @@ extension Workspace {
         return [
             "host_relaunched": relaunched,
             "patched_files": patch.files,
-            "stale_files": patch.stale.map { ["file": $0.file, "reason": $0.reason] },
+            "stale_files": patch.staleFiles,
             "timings": ["compile_ms": compileMilliseconds, "apply_ms": milliseconds(since: applyStarted)],
         ]
     }

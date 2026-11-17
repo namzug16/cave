@@ -1,14 +1,9 @@
 import Foundation
 
-struct StaleFile {
-    var file: String
-    var reason: String
-}
-
 struct Patch {
     var dylib: String
     var files: [String]
-    var stale: [StaleFile]
+    var staleFiles: [[String: String]]
 }
 
 /// Type names a Swift file declares, nested ones included.
@@ -103,10 +98,10 @@ extension Workspace {
         state.lastPatch = dylib
         state.lastPatchStartedAt = startedAt
         let fixturesSource = try String(contentsOfFile: fixturesFile, encoding: .utf8)
-        let stale = unreachedFiles(edited: editedSources, fixturesSource: fixturesSource).map {
-            StaleFile(file: $0, reason: "no fixture or patched view names its types, so renders still use the built code; run cave reload --full")
+        let staleFiles = unreachedFiles(edited: editedSources, fixturesSource: fixturesSource).map {
+            ["file": $0, "reason": "no fixture or patched view names its types, so renders still use the built code; run cave reload --full"]
         }
-        return Patch(dylib: dylib, files: files, stale: stale)
+        return Patch(dylib: dylib, files: files, staleFiles: staleFiles)
     }
 
     func swiftcArguments(_ state: State, module: String, output: String) throws -> [String] {
